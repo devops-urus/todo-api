@@ -40,32 +40,32 @@ jobs:
           docker push $IMAGE_TAG
           echo "image=$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-  deploy-to-cloud-run:
-    name: Deploy to Cloud Run
+  # We are temporarily commenting out the deploy job to debug the output
+  # deploy-to-cloud-run:
+  #   name: Deploy to Cloud Run
+  #   needs: build-and-push
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Authenticate to Google Cloud
+  #       uses: google-github-actions/auth@v2
+  #       with:
+  #         credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+  #     - name: Deploy to Cloud Run
+  #       uses: google-github-actions/deploy-cloudrun@v2
+  #       with:
+  #         service: ${{ env.SERVICE_NAME }}
+  #         region: ${{ env.REGION }}
+  #         image: ${{ needs.build-and-push.outputs.image }}
+  #         env_vars: |
+  #           DATABASE_URL=postgresql://postgres:${{ secrets.DB_PASSWORD }}@/?host=/cloudsql/${{ secrets.GCP_SQL_CONNECTION_NAME }}
+  #         flags: '--add-cloudsql-instances=${{ secrets.GCP_SQL_CONNECTION_NAME }}'
+
+  debug:
+    name: Debug Output
     needs: build-and-push
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
-          
-      # ---- FIX IS IN THIS STEP ----
-      - name: Deploy to Cloud Run
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: ${{ env.SERVICE_NAME }}
-          region: ${{ env.REGION }}
-          # This input is now processed correctly because the other inputs are valid.
-          image: ${{ needs.build-and-push.outputs.image }}
-          
-          # FIX 1: 'env-vars' is now 'env_vars' with an underscore.
-          env_vars: |
-            DATABASE_URL=postgresql://postgres:${{ secrets.DB_PASSWORD }}@/?host=/cloudsql/${{ secrets.GCP_SQL_CONNECTION_NAME }}
-          
-          # FIX 2: The Cloud SQL connection is now passed as a command-line flag.
-          flags: '--add-cloudsql-instances=${{ secrets.GCP_SQL_CONNECTION_NAME }}'
+      - name: Print the image name from the build job
+        # This will show us exactly what the next job receives.
+        # I've added quotes and markers to make it obvious if the string is empty.
+        run: echo "The image name received is >>>${{ needs.build-and-push.outputs.image }}<<<"
