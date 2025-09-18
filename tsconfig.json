@@ -1,0 +1,14 @@
+// In tsconfig.json
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "NodeNext", // CHANGE HERE: Use a modern module system
+    "moduleResolution": "NodeNext", // CHANGE HERE: Aligns with the module system
+    "outDir": "dist",
+    "rootDir": "src",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true, // Enable all strict type-checking options
+    "skipLibCheck": true
+  }
+}
