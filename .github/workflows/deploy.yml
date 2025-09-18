@@ -1,3 +1,5 @@
+# In .github/workflows/deploy.yml
+
 name: Build and Deploy to Cloud Run
 
 on:
@@ -7,16 +9,14 @@ on:
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  GAR_LOCATION: us-central1 # The region of our Artifact Registry
-  SERVICE_NAME: todo-api   # The name of our Cloud Run service
-  REGION: us-central1      # The region for our Cloud Run service
+  GAR_LOCATION: us-central1
+  SERVICE_NAME: todo-api
+  REGION: us-central1
 
 jobs:
   build-and-push:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
-
-    # We need to output the image name to use it in the next job
     outputs:
       image: ${{ steps.build-image.outputs.image }}
 
@@ -24,7 +24,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Authenticate to Google Cloud so we can push to Artifact Registry
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
@@ -33,21 +32,17 @@ jobs:
       - name: Configure Docker
         run: gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev
 
-      # Build and push the Docker image
       - name: Build and Push Image
-        id: build-image # Give this step an ID to reference its outputs
+        id: build-image
         run: |
           IMAGE_TAG=${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/todo-api-repo/${{ env.SERVICE_NAME }}:${{ github.sha }}
-          
           docker build -t $IMAGE_TAG .
-          
           docker push $IMAGE_TAG
-          
           echo "image=$IMAGE_TAG" >> $GITHUB_OUTPUT
 
   deploy-to-cloud-run:
     name: Deploy to Cloud Run
-    needs: build-and-push # This job depends on the previous one finishing
+    needs: build-and-push
     runs-on: ubuntu-latest
 
     steps:
@@ -59,20 +54,18 @@ jobs:
         with:
           credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
 
-      # The actual deployment step
+      # ---- FIX IS IN THIS STEP ----
       - name: Deploy to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: ${{ env.SERVICE_NAME }}
           region: ${{ env.REGION }}
-          # Use the image that was built and pushed in the previous job
           image: ${{ needs.build-and-push.outputs.image }}
-          # Connect our service to the Cloud SQL database
-          add-cloudsql-instances: ${{ secrets.GCP_SQL_CONNECTION_NAME }}
-          # Set the database password as a secret environment variable
-          secrets:
-            - name: DB_PASSWORD
-              value: '${{ secrets.DB_PASSWORD }}'
-          # Set the database URL as a regular environment variable
-          env-vars: |
-            DATABASE_URL=postgresql://postgres:${DB_PASSWORD}@/?host=/cloudsql/${{ secrets.GCP_SQL_CONNECTION_NAME }}
+          
+          # This correctly connects Cloud Run to your database instance
+            cloudsql-instances: ${{ secrets.GCP_SQL_CONNECTION_NAME }}
+          
+          # This correctly provides the database URL to your application as an environment variable.
+          # We removed the incorrect 'secrets:' block and now only use 'env-vars'.
+            env-vars: |
+              DATABASE_URL=postgresql://postgres:${{ secrets.DB_PASSWORD }}@/?host=/cloudsql/${{ secrets.GCP_SQL_CONNECTION_NAME }}
