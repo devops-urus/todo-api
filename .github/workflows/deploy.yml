@@ -18,7 +18,7 @@ jobs:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
     
-    # The job's output is named 'image'
+    # CRITICAL LINE 1: This declares that the job will have an output named 'image'.
     outputs:
       image: ${{ steps.build-image.outputs.image_name }}
 
@@ -34,21 +34,19 @@ jobs:
       - name: Configure Docker
         run: gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev
       
-      # --- THIS STEP IS THE FIX ---
-      # The 'id' must be at the top level of the step.
-      # The output from this step is named 'image_name'.
+      # CRITICAL LINE 2: This step is given an 'id' so we can reference it later.
       - id: build-image
         name: Build and Push Image
         run: |
           IMAGE_TAG=${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/todo-api-repo/${{ env.SERVICE_NAME }}:${{ github.sha }}
           docker build -t $IMAGE_TAG .
           docker push $IMAGE_TAG
-          # Set the output for this step.
+          # CRITICAL LINE 3: This command creates an output for this *step* called 'image_name'.
           echo "image_name=$IMAGE_TAG" >> $GITHUB_OUTPUT
 
   deploy-to-cloud-run:
     name: Deploy to Cloud Run
-    needs: build-and-push # Depends on the job above
+    needs: build-and-push # This ensures this job runs after the one above
     runs-on: ubuntu-latest
 
     steps:
@@ -62,7 +60,7 @@ jobs:
         with:
           service: ${{ env.SERVICE_NAME }}
           region: ${{ env.REGION }}
-          # This now correctly receives the 'image' output from the 'needs' context
+          # CRITICAL LINE 4: This correctly receives the 'image' output from the previous job.
           image: ${{ needs.build-and-push.outputs.image }}
           env_vars: |
             DATABASE_URL=postgresql://postgres:${{ secrets.DB_PASSWORD }}@/?host=/cloudsql/${{ secrets.GCP_SQL_CONNECTION_NAME }}
